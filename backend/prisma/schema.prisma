@@ -1,0 +1,110 @@
+// AI Fitness Coach - Prisma Schema
+// 7 个核心数据表
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// 1. 用户表
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  trainingLogs TrainingLog[]
+  bodyMetrics  BodyMetric[]
+  foodLogs     FoodLog[]
+}
+
+// 2. 动作库
+model Exercise {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  muscleGroup String   // 胸部/背部/腿部/肩部/手臂/核心/全身
+  equipment   String?  // 杠铃/哑铃/器械/自重
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  trainingSets TrainingSet[]
+}
+
+// 3. 训练记录
+model TrainingLog {
+  id        String   @id @default(uuid())
+  userId    String
+  date      DateTime
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sets TrainingSet[]
+}
+
+// 4. 训练组
+model TrainingSet {
+  id            String   @id @default(uuid())
+  trainingLogId String
+  exerciseId    String
+  order         Int      // 第几组
+  weight        Float    // 重量 (kg)
+  reps          Int      // 次数
+  rpe           Float?   // 自觉用力程度 (可选)
+  createdAt     DateTime @default(now())
+
+  trainingLog TrainingLog @relation(fields: [trainingLogId], references: [id], onDelete: Cascade)
+  exercise    Exercise    @relation(fields: [exerciseId], references: [id])
+}
+
+// 5. 身体数据
+model BodyMetric {
+  id        String   @id @default(uuid())
+  userId    String
+  date      DateTime
+  weight    Float?   // 体重 (kg)
+  bodyFat   Float?   // 体脂率 (%)
+  chest     Float?   // 胸围 (cm)
+  waist     Float?   // 腰围 (cm)
+  hips      Float?   // 臀围 (cm)
+  arm       Float?   // 臂围 (cm)
+  thigh     Float?   // 腿围 (cm)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// 6. 饮食记录
+model FoodLog {
+  id        String   @id @default(uuid())
+  userId    String
+  date      DateTime
+  name      String
+  calories  Float
+  protein   Float?   // 蛋白质 (g)
+  carbs     Float?   // 碳水化合物 (g)
+  fat       Float?   // 脂肪 (g)
+  mealType  String   // breakfast/lunch/dinner/snack
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// 7. AI 建议
+model AiSuggestion {
+  id        String   @id @default(uuid())
+  userId    String
+  type      String   // training/nutrition/recovery
+  content   String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
