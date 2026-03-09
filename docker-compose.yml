@@ -1,0 +1,69 @@
+# AI Fitness Coach - Docker Compose 部署配置
+
+version: '3.8'
+
+services:
+  # 后端服务
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: fitness-backend
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DATABASE_URL=file:/app/data/fitness.db
+      - JWT_SECRET=${JWT_SECRET:-your-secret-key-change-in-production}
+      - JWT_EXPIRES_IN=7d
+      - HIGRESS_GATEWAY_URL=${HIGRESS_GATEWAY_URL:-http://aigw-local.hiclaw.io:8080/v1}
+      - HIGRESS_API_KEY=${HIGRESS_API_KEY:-your-api-key}
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # 前端服务 (生产环境使用 Nginx 托管构建后的静态文件)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: fitness-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  # 数据库备份服务 (可选)
+  backup:
+    image: alpine:latest
+    container_name: fitness-backup
+    volumes:
+      - ./data:/source:ro
+      - ./backups:/backup
+    command: >
+      sh -c "while true; do
+        cp /source/fitness.db /backup/fitness-db-$$(date +\%Y\%m\%d-\%H\%M\%S).db;
+        find /backup -name '*.db' -mtime +7 -delete;
+        sleep 86400;
+      done"
+    restart: unless-stopped
+
+networks:
+  default:
+    name: fitness-network
+    driver: bridge
+
+volumes:
+  data:
+    driver: local
+  backups:
+    driver: local
